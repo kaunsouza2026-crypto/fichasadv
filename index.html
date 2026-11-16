@@ -177,7 +177,7 @@
 <div class="container">
     <header>
         <h1>Formatador de Fichas & Filtro por Faixa de Idade</h1>
-        <p>Defina a idade mínima e máxima desejada (exigindo telefone válido) para gerar suas fichas.</p>
+        <p>Defina a faixa de idade, exija telefone válido e gere as fichas com o advogado correto do processo.</p>
     </header>
 
     <div class="card">
@@ -193,7 +193,7 @@
                 <label for="idadeMax" style="margin:0;">Idade Máxima:</label>
                 <input type="number" id="idadeMax" placeholder="Ex: 80" value="">
             </div>
-            <span style="font-size: 13px; color: #666; width: 100%;">* Deixe em branco se não quiser limitar a idade. O sistema exige que a ficha possua número de telefone.</span>
+            <span style="font-size: 13px; color: #666; width: 100%;">* Deixe em branco se não quiser limitar a idade. Exige telefone válido.</span>
         </div>
 
         <div class="btn-group">
@@ -227,6 +227,7 @@
             let valorCausa = 'R$ 0,00';
             let assuntoNatureza = 'Sem informação';
             let parteContraria = 'Sem informação';
+            let nomeAdvogado = 'Dr. Marcelo Klibis'; // Padrão caso não encontre
 
             let requerentes = [];
             let reqAtual = null;
@@ -236,6 +237,13 @@
             linhas.forEach(linha => {
                 if (linha.startsWith('PROCESSO:')) {
                     numProcesso = linha.replace('PROCESSO:', '').trim();
+                }
+                // Captura o advogado do processo
+                if (linha.includes('Advogado:')) {
+                    let advLido = linha.replace(/⚖️|Advogado:/g, '').trim();
+                    if (advLido) {
+                        nomeAdvogado = `Dr(a). *${advLido}*`;
+                    }
                 }
                 if (linha.includes('Requerente (Polo Ativo):')) {
                     lendoPoloAtivo = true;
@@ -290,14 +298,12 @@
             let temTelefone = requerentes.some(r => r.telefones && r.telefones.trim() !== '' && r.telefones.trim() !== 'N/A');
             if (!temTelefone) return;
 
-            // 2. REQUISITO: Filtro por Faixa de Idade Personalizada
+            // 2. REQUISITO: Filtro por Faixa de Idade
             let idadeStr = requerentes[0].idade || '0';
             let matchIdade = idadeStr.match(/\d+/);
             let idadeNum = matchIdade ? parseInt(matchIdade[0]) : 0;
 
-            // Se o usuário preencheu idade mínima e a idade do cliente for menor, pula
             if (idadeMin !== null && idadeNum < idadeMin) return;
-            // Se o usuário preencheu idade máxima e a idade do cliente for maior, pula
             if (idadeMax !== null && idadeNum > idadeMax) return;
 
             let topoRequerentes = '';
@@ -344,7 +350,7 @@ Essa conquista representa o resultado de um trabalho realizado com seriedade, co
 Permaneço à disposição para quaisquer esclarecimentos.
 
 Atenciosamente,
-Dr. *Marcelo Klibis*
+${nomeAdvogado}
 
 =====================================
 
@@ -353,7 +359,7 @@ Prezado Sr(a). *${nomesStr}*, tudo bem com o senhor(a)?
 Venho, por meio deste, compartilhar uma excelente notícia referente ao processo nº *${numProcesso}*.
 
 Atenciosamente,
-Dr. *Marcelo Klibis*`;
+${nomeAdvogado}`;
 
             let docPrincipalLimpo = requerentes[0].doc.replace(/\D/g, '');
             if (!docPrincipalLimpo) docPrincipalLimpo = 'geral_' + Math.floor(Math.random() * 10000);
