@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formatador de Fichas, Filtro por Faixa de Idade e ZIP</title>
+    <!-- Importa a biblioteca JSZip para criar arquivos .zip direto no navegador -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #2980b9;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #dcdde1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: #666;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.1);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: #fafbfc;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group input[type="number"] {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            background: white;
+            width: 80px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex: 1;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #2471a3;
+        }
+
+        .btn-success {
+            background-color: #27ae60;
+        }
+
+        .btn-success:hover {
+            background-color: #219653;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .ficha-box {
+            background: #fafbfc;
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--accent);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .btn-copy {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-copy:hover {
+            background-color: #219653;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Formatador de Fichas & Filtro por Faixa de Idade</h1>
+        <p>Defina a idade mínima e máxima desejada (exigindo telefone válido) para gerar suas fichas.</p>
+    </header>
+
+    <div class="card">
+        <label for="txtInput">Cole o conteúdo do TXT aqui:</label>
+        <textarea id="txtInput" placeholder="Cole suas fichas aqui..."></textarea>
+
+        <div class="filter-group">
+            <div>
+                <label for="idadeMin" style="margin:0;">Idade Mínima:</label>
+                <input type="number" id="idadeMin" placeholder="Ex: 40" value="">
+            </div>
+            <div>
+                <label for="idadeMax" style="margin:0;">Idade Máxima:</label>
+                <input type="number" id="idadeMax" placeholder="Ex: 80" value="">
+            </div>
+            <span style="font-size: 13px; color: #666; width: 100%;">* Deixe em branco se não quiser limitar a idade. O sistema exige que a ficha possua número de telefone.</span>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="formatarFichas()">Visualizar Fichas</button>
+            <button class="btn btn-success" onclick="gerarEBaixarZip()">Baixar em ZIP (.zip)</button>
+        </div>
+    </div>
+
+    <div class="card" id="resultadoCard" style="display: none;">
+        <div class="output-header">
+            <h3 style="margin:0; color: var(--primary);">Fichas Filtradas e Formatadas</h3>
+        </div>
+        <div id="resultadoContainer"></div>
+    </div>
+</div>
+
+<script>
+    function processarTexto(texto) {
+        const minInput = document.getElementById('idadeMin').value.trim();
+        const maxInput = document.getElementById('idadeMax').value.trim();
+        
+        const idadeMin = minInput !== '' ? parseInt(minInput) : null;
+        const idadeMax = maxInput !== '' ? parseInt(maxInput) : null;
+
+        const blocos = texto.split(/(?=PROCESSO:\s)/i).filter(b => b.trim().length > 0);
+        let fichasProcessadas = [];
+
+        blocos.forEach((bloco) => {
+            const linhas = bloco.trim().split('\n');
+            let numProcesso = '';
+            let valorCausa = 'R$ 0,00';
+            let assuntoNatureza = 'Sem informação';
+            let parteContraria = 'Sem informação';
+
+            let requerentes = [];
+            let reqAtual = null;
+            let lendoPoloAtivo = false;
+            let lendoPoloPassivo = false;
+
+            linhas.forEach(linha => {
+                if (linha.startsWith('PROCESSO:')) {
+                    numProcesso = linha.replace('PROCESSO:', '').trim();
+                }
+                if (linha.includes('Requerente (Polo Ativo):')) {
+                    lendoPoloAtivo = true;
+                    lendoPoloPassivo = false;
+                    return;
+                }
+                if (linha.includes('Requerido (Polo Passivo):')) {
+                    if (reqAtual) { requerentes.push(reqAtual); reqAtual = null; }
+                    lendoPoloAtivo = false;
+                    lendoPoloPassivo = true;
+                    return;
+                }
+                if (linha.includes('Dados da Ação:')) {
+                    if (reqAtual) { requerentes.push(reqAtual); reqAtual = null; }
+                    lendoPoloAtivo = false;
+                    lendoPoloPassivo = false;
+                    return;
+                }
+
+                if (lendoPoloAtivo) {
+                    if (linha.includes('Nome:')) {
+                        if (reqAtual) { requerentes.push(reqAtual); }
+                        reqAtual = { nome: linha.split('Nome:')[1].trim(), doc: '', renda: '', idade: '', telefones: '' };
+                    } else if (reqAtual && linha.includes('Doc.:')) {
+                        reqAtual.doc = linha.split('Doc.:')[1].trim();
+                    } else if (reqAtual && linha.includes('RENDA:')) {
+                        const partes = linha.split('|');
+                        partes.forEach(p => {
+                            if (p.includes('RENDA:')) reqAtual.renda = p.replace('RENDA:', '').trim();
+                            if (p.includes('IDADE:')) reqAtual.idade = p.replace('IDADE:', '').trim();
+                            if (p.includes('SCORE:')) reqAtual.score = p.replace('SCORE:', '').trim();
+                        });
+                    } else if (reqAtual && linha.includes('Telefones:')) {
+                        reqAtual.telefones = linha.split('Telefones:')[1].trim();
+                    }
+                }
+
+                if (linha.includes('Natureza:')) {
+                    assuntoNatureza = linha.replace(/⚖️|Natureza:/g, '').trim();
+                }
+                if (linha.includes('Valor da Causa:')) {
+                    valorCausa = linha.replace(/💰|Valor da Causa:/g, '').trim();
+                }
+                if (lendoPoloPassivo && linha.includes('Nome:')) {
+                    parteContraria = linha.split('Nome:')[1].trim();
+                }
+            });
+
+            if (reqAtual) { requerentes.push(reqAtual); }
+
+            // 1. REQUISITO: Precisa ter telefone válido
+            let temTelefone = requerentes.some(r => r.telefones && r.telefones.trim() !== '' && r.telefones.trim() !== 'N/A');
+            if (!temTelefone) return;
+
+            // 2. REQUISITO: Filtro por Faixa de Idade Personalizada
+            let idadeStr = requerentes[0].idade || '0';
+            let matchIdade = idadeStr.match(/\d+/);
+            let idadeNum = matchIdade ? parseInt(matchIdade[0]) : 0;
+
+            // Se o usuário preencheu idade mínima e a idade do cliente for menor, pula
+            if (idadeMin !== null && idadeNum < idadeMin) return;
+            // Se o usuário preencheu idade máxima e a idade do cliente for maior, pula
+            if (idadeMax !== null && idadeNum > idadeMax) return;
+
+            let topoRequerentes = '';
+            requerentes.forEach(r => {
+                let docFormatado = r.doc;
+                let numerosLimpos = r.doc.replace(/\D/g, '');
+                if (numerosLimpos.length === 11) {
+                    docFormatado = numerosLimpos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                } else if (numerosLimpos.length === 14) {
+                    docFormatado = numerosLimpos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+                }
+
+                let telefonesFormatados = r.telefones ? r.telefones.split(', ').join(' | ') : 'N/A';
+
+                topoRequerentes += 
+`DOC: ${docFormatado || 'N/A'}
+RENDA: ${r.renda || 'R$ 0,00'}
+IDADE: ${r.idade || 'N/A'}
+NÚMEROS: ${telefonesFormatados}
+NOME: ${r.nome}
+-------------------------------------
+`;
+            });
+
+            let nomesStr = requerentes.map(r => r.nome).join(', ');
+            let ultimoVirgula = nomesStr.lastIndexOf(',');
+            if (ultimoVirgula !== -1) {
+                nomesStr = nomesStr.substring(0, ultimoVirgula) + ' e' + nomesStr.substring(ultimoVirgula + 1);
+            }
+
+            let fichaFormatada = 
+`${topoRequerentes.trim()}
+Prezado Sr(a). *${nomesStr}*,
+
+Venho, por meio deste, compartilhar uma excelente notícia referente ao processo nº *${numProcesso}*.
+
+* *Assunto*: ${assuntoNatureza}
+* *Parte contrária*: ${parteContraria}
+
+O juiz proferiu *decisão favorável* ao(à) senhor(a), ou seja, a *causa foi ganha*, com autorização para liberação do valor de *${valorCausa}*.
+
+Essa conquista representa o resultado de um trabalho realizado com seriedade, compromisso e dedicação em todas as etapas do processo.
+
+Permaneço à disposição para quaisquer esclarecimentos.
+
+Atenciosamente,
+Dr. *Marcelo Klibis*
+
+=====================================
+
+Prezado Sr(a). *${nomesStr}*, tudo bem com o senhor(a)?
+
+Venho, por meio deste, compartilhar uma excelente notícia referente ao processo nº *${numProcesso}*.
+
+Atenciosamente,
+Dr. *Marcelo Klibis*`;
+
+            let docPrincipalLimpo = requerentes[0].doc.replace(/\D/g, '');
+            if (!docPrincipalLimpo) docPrincipalLimpo = 'geral_' + Math.floor(Math.random() * 10000);
+            let nomeArquivo = `MSG_${docPrincipalLimpo}.txt`;
+
+            fichasProcessadas.push({
+                nomeCliente: requerentes[0].nome,
+                nomeArquivo: nomeArquivo,
+                conteudo: fichaFormatada
+            });
+        });
+
+        return fichasProcessadas;
+    }
+
+    function formatarFichas() {
+        const texto = document.getElementById('txtInput').value;
+        const container = document.getElementById('resultadoContainer');
+        const resultadoCard = document.getElementById('resultadoCard');
+        
+        container.innerHTML = '';
+
+        if (!texto.trim()) {
+            alert('Por favor, cole algum texto antes de formatar.');
+            resultadoCard.style.display = 'none';
+            return;
+        }
+
+        const fichas = processarTexto(texto);
+
+        if (fichas.length === 0) {
+            container.innerHTML = '<p>Nenhuma ficha corresponde à faixa de idade e telefone informados.</p>';
+            resultadoCard.style.display = 'block';
+            return;
+        }
+
+        fichas.forEach((ficha, index) => {
+            const wrapper = document.createElement('div');
+            wrapper.style.marginBottom = '25px';
+            
+            const topBar = document.createElement('div');
+            topBar.style.display = 'flex';
+            topBar.style.justifyContent = 'space-between';
+            topBar.style.alignItems = 'center';
+            topBar.style.marginBottom = '5px';
+            
+            const title = document.createElement('strong');
+            title.innerText = `Ficha ${index + 1} (${ficha.nomeArquivo}) - ${ficha.nomeCliente}`;
+            title.style.color = 'var(--primary)';
+
+            const btnCopiar = document.createElement('button');
+            btnCopiar.className = 'btn-copy';
+            btnCopiar.innerText = 'Copiar Ficha';
+            btnCopiar.onclick = () => {
+                navigator.clipboard.writeText(ficha.conteudo);
+                btnCopiar.innerText = 'Copiado!';
+                setTimeout(() => btnCopiar.innerText = 'Copiar Ficha', 2000);
+            };
+
+            topBar.appendChild(title);
+            topBar.appendChild(btnCopiar);
+
+            const pre = document.createElement('div');
+            pre.className = 'ficha-box';
+            pre.innerText = ficha.conteudo;
+
+            wrapper.appendChild(topBar);
+            wrapper.appendChild(pre);
+            container.appendChild(wrapper);
+        });
+
+        resultadoCard.style.display = 'block';
+    }
+
+    async function gerarEBaixarZip() {
+        const texto = document.getElementById('txtInput').value;
+        if (!texto.trim()) {
+            alert('Por favor, cole algum texto antes de gerar o ZIP.');
+            return;
+        }
+
+        const fichas = processarTexto(texto);
+        if (fichas.length === 0) {
+            alert('Nenhuma ficha corresponde à faixa de idade informada.');
+            return;
+        }
+
+        const zip = new JSZip();
+
+        fichas.forEach(ficha => {
+            zip.file(ficha.nomeArquivo, ficha.conteudo);
+        });
+
+        try {
+            const content = await zip.generateAsync({ type: "blob" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = "fichas_por_idade.zip";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            alert('Erro ao gerar o arquivo ZIP: ' + error);
+        }
+    }
+</script>
+
+</body>
+</html>
